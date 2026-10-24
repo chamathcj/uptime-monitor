@@ -24,9 +24,43 @@ const monitorSchema = z.object({
 const FIELDS = `id, name, url, interval_seconds, timeout_ms, expected_status,
                 is_paused, status, created_at`;
 
+ 
+router.param('id', (req, res, next, id) => {
+  if (!/^\d+$/.test(id)) return res.status(404).json({ error: 'Not found' });
+  next();
+});
+
+async function ownsMonitor(id, userId) {
+  const r = await pool.query(
+    'SELECT 1 FROM monitors WHERE id = $1 AND user_id = $2',
+    [id, userId]
+  );
+  return r.rowCount > 0;
+}
+
+ 
 router.get('/', async (req, res) => {
   const result = await pool.query(
-    `SELECT ${FIELDS} FROM monitors WHERE user_id = $1 ORDER BY created_at DESC`,
+    `SELECT m.id, m.name, m.url, m.interval_seconds, m.timeout_ms,
+            m.expected_status, m.is_paused, m.status, m.created_at,
+            s.checks_24h, s.uptime_24h, s.avg_response_24h,
+            lc.checked_at AS last_checked_at,
+            lc.response_time_ms AS last_response_time_ms
+     FROM monitors m
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*)::int AS checks_24h,
+              ROUND(100.0 * COUNT(*) FILTER (WHERE c.ok) / NULLIF(COUNT(*), 0), 2)::float AS uptime_24h,
+              ROUND(AVG(c.response_time_ms) FILTER (WHERE c.ok))::int AS avg_response_24h
+       FROM checks c
+       WHERE c.monitor_id = m.id AND c.checked_at > now() - interval '24 hours'
+     ) s ON true
+     LEFT JOIN LATERAL (
+       SELECT c.checked_at, c.response_time_ms
+       FROM checks c WHERE c.monitor_id = m.id
+       ORDER BY c.checked_at DESC LIMIT 1
+     ) lc ON true
+     WHERE m.user_id = $1
+     ORDER BY m.created_at DESC`,
     [req.userId]
   );
   res.json(result.rows);
@@ -96,13 +130,12 @@ router.delete('/:id', async (req, res) => {
   if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
   res.status(204).end();
 });
-router.get('/:id/checks', async (req, res) => {
-  const owned = await pool.query(
-    'SELECT 1 FROM monitors WHERE id = $1 AND user_id = $2',
-    [req.params.id, req.userId]
-  );
-  if (owned.rowCount === 0) return res.status(404).json({ error: 'Not found' });
 
+ 
+router.get('/:id/checks', async (req, res) => {
+  if (!(await ownsMonitor(req.params.id, req.userId))) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   const limit = Math.min(Number(req.query.limit) || 50, 500);
   const result = await pool.query(
     `SELECT id, checked_at, status_code, response_time_ms, ok, error
@@ -112,4 +145,62 @@ router.get('/:id/checks', async (req, res) => {
   );
   res.json(result.rows);
 });
+
+ 
+const uptimeSql = (label, interval) => `
+  ROUND(100.0 * COUNT(*) FILTER (WHERE ok AND checked_at > now() - interval '${interval}')
+        / NULLIF(COUNT(*) FILTER (WHERE checked_at > now() - interval '${interval}'), 0), 2)::float
+        AS uptime_${label}`;
+
+router.get('/:id/stats', async (req, res) => {
+  if (!(await ownsMonitor(req.params.id, req.userId))) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  const result = await pool.query(
+    `SELECT
+       ${uptimeSql('24h', '24 hours')},
+       ${uptimeSql('7d', '7 days')},
+       ${uptimeSql('30d', '30 days')},
+       COUNT(*) FILTER (WHERE checked_at > now() - interval '24 hours')::int AS checks_24h,
+       ROUND(AVG(response_time_ms) FILTER (WHERE ok AND checked_at > now() - interval '24 hours'))::int
+         AS avg_response_24h,
+       ROUND((percentile_cont(0.95) WITHIN GROUP (ORDER BY response_time_ms)
+         FILTER (WHERE ok AND checked_at > now() - interval '24 hours'))::numeric)::int
+         AS p95_response_24h
+     FROM checks
+     WHERE monitor_id = $1 AND checked_at > now() - interval '30 days'`,
+    [req.params.id]
+  );
+  res.json(result.rows[0]);
+});
+
+ 
+const RANGES = {
+  '24h': { window: '24 hours', bucket: '10 minutes' },
+  '7d': { window: '7 days', bucket: '1 hour' },
+  '30d': { window: '30 days', bucket: '6 hours' },
+};
+
+router.get('/:id/response-times', async (req, res) => {
+  if (!(await ownsMonitor(req.params.id, req.userId))) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  const range = Object.hasOwn(RANGES, req.query.range)
+    ? RANGES[req.query.range]
+    : RANGES['24h'];
+
+  const result = await pool.query(
+    `SELECT date_bin($2::interval, checked_at, TIMESTAMPTZ '2000-01-01') AS bucket,
+            ROUND(AVG(response_time_ms) FILTER (WHERE ok))::int AS avg_ms,
+            COUNT(*)::int AS checks,
+            COUNT(*) FILTER (WHERE NOT ok)::int AS failures
+     FROM checks
+     WHERE monitor_id = $1 AND checked_at > now() - $3::interval
+     GROUP BY bucket
+     ORDER BY bucket`,
+    [req.params.id, range.bucket, range.window]
+  );
+  res.json(result.rows);
+});
+
 export default router;
