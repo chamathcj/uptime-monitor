@@ -96,5 +96,20 @@ router.delete('/:id', async (req, res) => {
   if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
   res.status(204).end();
 });
+router.get('/:id/checks', async (req, res) => {
+  const owned = await pool.query(
+    'SELECT 1 FROM monitors WHERE id = $1 AND user_id = $2',
+    [req.params.id, req.userId]
+  );
+  if (owned.rowCount === 0) return res.status(404).json({ error: 'Not found' });
 
+  const limit = Math.min(Number(req.query.limit) || 50, 500);
+  const result = await pool.query(
+    `SELECT id, checked_at, status_code, response_time_ms, ok, error
+     FROM checks WHERE monitor_id = $1
+     ORDER BY checked_at DESC LIMIT $2`,
+    [req.params.id, limit]
+  );
+  res.json(result.rows);
+});
 export default router;

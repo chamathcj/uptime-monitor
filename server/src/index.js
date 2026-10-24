@@ -1,8 +1,10 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { pool } from './db.js';
 import authRoutes from './routes/auth.js';
 import monitorRoutes from './routes/monitors.js';
+import { startScheduler, stopScheduler } from './scheduler.js';
 
 const app = express();
 app.use(cors());
@@ -18,4 +20,15 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 5000;
-app.listen(port, () => console.log(`API running on http://localhost:${port}`));
+const server = app.listen(port, () => console.log(`API running on http://localhost:${port}`));
+
+ 
+if (process.env.RUN_SCHEDULER !== 'false') startScheduler();
+
+function shutdown() {
+  stopScheduler();
+  setTimeout(() => process.exit(1), 5000).unref();
+  server.close(() => pool.end().then(() => process.exit(0)));
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
