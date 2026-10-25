@@ -29,7 +29,7 @@ async function claimDueMonitors() {
 }
 
  
-async function recordResult(monitor, result) {
+export async function recordResult(monitor, result) {
   const client = await pool.connect();
   let event = null;
 

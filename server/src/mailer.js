@@ -34,8 +34,8 @@ function getTransporter() {
 }
 
 export async function sendMail({ to, subject, text }) {
+  if (process.env.MAIL_MODE === 'off') return;
   const transporter = await getTransporter();
-
   if (!transporter) {
     console.log(`[mail:console] To: ${to}\nSubject: ${subject}\n${text}\n`);
     return;
