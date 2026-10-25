@@ -1,11 +1,16 @@
-const LABELS = { up: 'Up', down: 'Down', pending: 'Pending', paused: 'Paused' };
+const LABELS = {
+  up: 'Up',
+  down: 'Down',
+  pending: 'Pending',
+  paused: 'Paused',
+  warning: 'Failing',
+};
 
-export default function StatusBadge({ status, paused }) {
-  const key = paused ? 'paused' : status;
+export default function StatusBadge({ status }) {
   return (
-    <span className={`badge badge-${key}`}>
+    <span className={`badge badge-${status}`}>
       <span className="dot" />
-      {LABELS[key]}
+      {LABELS[status] ?? status}
     </span>
   );
 }

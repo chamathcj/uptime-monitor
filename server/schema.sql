@@ -44,3 +44,9 @@ CREATE TABLE incidents (
 );
 
 CREATE INDEX idx_incidents_monitor ON incidents (monitor_id, started_at DESC);
+ALTER TABLE monitors
+  ADD COLUMN failure_threshold INT NOT NULL DEFAULT 3 CHECK (failure_threshold BETWEEN 1 AND 10),
+  ADD COLUMN alerts_enabled BOOLEAN NOT NULL DEFAULT true;
+
+CREATE UNIQUE INDEX one_open_incident_per_monitor
+  ON incidents (monitor_id) WHERE resolved_at IS NULL;

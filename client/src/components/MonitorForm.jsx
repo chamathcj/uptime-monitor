@@ -9,13 +9,15 @@ export default function MonitorForm({ editing, onSaved, onCancel }) {
     interval_seconds: editing?.interval_seconds ?? 300,
     expected_status: editing?.expected_status ?? 200,
     timeout_seconds: editing ? Math.round(editing.timeout_ms / 1000) : 10,
+    failure_threshold: editing?.failure_threshold ?? 3,
+    alerts_enabled: editing?.alerts_enabled ?? true,
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
-   
+  
   const current = Number(form.interval_seconds);
   const intervals = INTERVALS.some((i) => i.value === current)
     ? INTERVALS
@@ -32,6 +34,8 @@ export default function MonitorForm({ editing, onSaved, onCancel }) {
       interval_seconds: Number(form.interval_seconds),
       expected_status: Number(form.expected_status),
       timeout_ms: Number(form.timeout_seconds) * 1000,
+      failure_threshold: Number(form.failure_threshold),
+      alerts_enabled: form.alerts_enabled,
       is_paused: editing?.is_paused ?? false,
     };
 
@@ -94,6 +98,28 @@ export default function MonitorForm({ editing, onSaved, onCancel }) {
             onChange={set('timeout_seconds')}
             required
           />
+        </label>
+      </div>
+
+      <div className="row">
+        <label>
+          Down after failed checks in a row
+          <input
+            type="number"
+            min="1"
+            max="10"
+            value={form.failure_threshold}
+            onChange={set('failure_threshold')}
+            required
+          />
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={form.alerts_enabled}
+            onChange={(e) => setForm({ ...form, alerts_enabled: e.target.checked })}
+          />
+          Send email alerts
         </label>
       </div>
 

@@ -82,3 +82,7 @@ th { color: #9ca3af; font-weight: 600; }
 @media (max-width: 520px) {
   .cards, .cards-5 { grid-template-columns: 1fr; }
 }
+.badge-warning { background: #431407; color: #fb923c; }
+
+label.checkbox { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; flex: 0 0 auto; margin-top: 20px; }
+label.checkbox input { width: 18px; height: 18px; padding: 0; }

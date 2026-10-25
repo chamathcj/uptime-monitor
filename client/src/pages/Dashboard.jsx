@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { timeAgo, fmtPct, fmtMs } from '../utils';
+import { timeAgo, fmtPct, fmtMs, displayStatus } from '../utils';
 import StatusBadge from '../components/StatusBadge';
 import MonitorForm from '../components/MonitorForm';
 
@@ -32,17 +32,11 @@ export default function Dashboard() {
   async function togglePause(m) {
     try {
       await api(`/monitors/${m.id}`, {
-        method: 'PUT',
-        body: {
-          name: m.name,
-          url: m.url,
-          interval_seconds: m.interval_seconds,
-          timeout_ms: m.timeout_ms,
-          expected_status: m.expected_status,
-          is_paused: !m.is_paused,
-        },
+        method: 'PATCH',
+        body: { is_paused: !m.is_paused },
       });
       load();
+      setTimeout(load, 7000); 
     } catch (err) {
       setError(err.message);
     }
@@ -55,9 +49,9 @@ export default function Dashboard() {
   }
 
   const list = monitors ?? [];
-  const active = list.filter((m) => !m.is_paused);
-  const up = active.filter((m) => m.status === 'up').length;
-  const down = active.filter((m) => m.status === 'down').length;
+  const up = list.filter((m) => displayStatus(m) === 'up').length;
+  const down = list.filter((m) => displayStatus(m) === 'down').length;
+  const failing = list.filter((m) => displayStatus(m) === 'warning').length;
   const withUptime = list.filter((m) => m.uptime_24h != null);
   const avgUptime = withUptime.length
     ? (withUptime.reduce((sum, m) => sum + m.uptime_24h, 0) / withUptime.length).toFixed(2)
@@ -87,7 +81,7 @@ export default function Dashboard() {
           <strong className="positive">{up}</strong>
         </div>
         <div className="card">
-          <span className="muted">Down</span>
+          <span className="muted">Down{failing > 0 ? ` (${failing} failing)` : ''}</span>
           <strong className={down > 0 ? 'negative' : ''}>{down}</strong>
         </div>
         <div className="card">
@@ -124,7 +118,7 @@ export default function Dashboard() {
               <tbody>
                 {list.map((m) => (
                   <tr key={m.id}>
-                    <td><StatusBadge status={m.status} paused={m.is_paused} /></td>
+                    <td><StatusBadge status={displayStatus(m)} /></td>
                     <td>
                       <Link to={`/monitors/${m.id}`} className="monitor-name">{m.name}</Link>
                       <div className="muted small">{m.url}</div>

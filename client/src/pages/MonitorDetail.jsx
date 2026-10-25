@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
-import { fmtPct, fmtMs } from '../utils';
+import { fmtPct, fmtMs, fmtDuration, displayStatus } from '../utils';
 import StatusBadge from '../components/StatusBadge';
 import MonitorForm from '../components/MonitorForm';
 import ResponseChart from '../components/ResponseChart';
@@ -17,22 +17,25 @@ export default function MonitorDetail() {
   const [stats, setStats] = useState(null);
   const [series, setSeries] = useState([]);
   const [checks, setChecks] = useState([]);
+  const [incidents, setIncidents] = useState([]);
   const [range, setRange] = useState('24h');
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [m, s, r, c] = await Promise.all([
+      const [m, s, r, c, i] = await Promise.all([
         api(`/monitors/${id}`),
         api(`/monitors/${id}/stats`),
         api(`/monitors/${id}/response-times?range=${range}`),
         api(`/monitors/${id}/checks?limit=20`),
+        api(`/monitors/${id}/incidents`),
       ]);
       setMonitor(m);
       setStats(s);
       setSeries(r);
       setChecks(c);
+      setIncidents(i);
       setError('');
     } catch (err) {
       setError(err.message);
@@ -48,17 +51,11 @@ export default function MonitorDetail() {
   async function togglePause() {
     try {
       await api(`/monitors/${id}`, {
-        method: 'PUT',
-        body: {
-          name: monitor.name,
-          url: monitor.url,
-          interval_seconds: monitor.interval_seconds,
-          timeout_ms: monitor.timeout_ms,
-          expected_status: monitor.expected_status,
-          is_paused: !monitor.is_paused,
-        },
+        method: 'PATCH',
+        body: { is_paused: !monitor.is_paused },
       });
       load();
+      setTimeout(load, 7000); 
     } catch (err) {
       setError(err.message);
     }
@@ -93,9 +90,13 @@ export default function MonitorDetail() {
           <a href={monitor.url} target="_blank" rel="noopener noreferrer" className="muted small">
             {monitor.url}
           </a>
+          <div className="muted small">
+            Alerts {monitor.alerts_enabled ? 'on' : 'off'} · declared down after{' '}
+            {monitor.failure_threshold} failed {monitor.failure_threshold === 1 ? 'check' : 'checks'} in a row
+          </div>
         </div>
         <div className="row">
-          <StatusBadge status={monitor.status} paused={monitor.is_paused} />
+          <StatusBadge status={displayStatus(monitor)} />
           <button className="secondary" onClick={() => setEditing((e) => !e)}>Edit</button>
           <button className="secondary" onClick={togglePause}>
             {monitor.is_paused ? 'Resume' : 'Pause'}
@@ -110,7 +111,11 @@ export default function MonitorDetail() {
         <section className="panel">
           <MonitorForm
             editing={monitor}
-            onSaved={() => { setEditing(false); load(); }}
+            onSaved={() => {
+              setEditing(false);
+              load();
+              setTimeout(load, 7000); 
+            }}
             onCancel={() => setEditing(false)}
           />
         </section>
@@ -140,6 +145,42 @@ export default function MonitorDetail() {
           </div>
         </div>
         <ResponseChart data={series} range={range} />
+      </section>
+
+      <section className="panel">
+        <h2>Incidents</h2>
+        {incidents.length === 0 ? (
+          <p className="muted">No incidents. This monitor has not been declared down.</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Started</th>
+                  <th>Resolved</th>
+                  <th>Duration</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {incidents.map((i) => (
+                  <tr key={i.id}>
+                    <td>{new Date(i.started_at).toLocaleString()}</td>
+                    <td>
+                      {i.resolved_at ? (
+                        new Date(i.resolved_at).toLocaleString()
+                      ) : (
+                        <span className="negative">Ongoing</span>
+                      )}
+                    </td>
+                    <td>{fmtDuration(i.duration_seconds)}</td>
+                    <td className="muted">{i.reason ?? ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="panel">
