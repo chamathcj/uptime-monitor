@@ -20,16 +20,17 @@ const monitorSchema = z.object({
   expected_status: z.coerce.number().int().min(100).max(599).default(200),
   failure_threshold: z.coerce.number().int().min(1).max(10).default(3),
   alerts_enabled: z.boolean().default(true),
+  show_on_status_page: z.boolean().default(false),
   is_paused: z.boolean().default(false),
 });
 
 const pauseSchema = z.object({ is_paused: z.boolean() });
 
 const FIELDS = `id, name, url, interval_seconds, timeout_ms, expected_status,
-                failure_threshold, alerts_enabled, is_paused, status,
-                consecutive_failures, created_at`;
+                failure_threshold, alerts_enabled, show_on_status_page,
+                is_paused, status, consecutive_failures, created_at`;
 
- 
+
 router.param('id', (req, res, next, id) => {
   if (!/^\d+$/.test(id)) return res.status(404).json({ error: 'Not found' });
   next();
@@ -43,12 +44,13 @@ async function ownsMonitor(id, userId) {
   return r.rowCount > 0;
 }
 
- 
+
 router.get('/', async (req, res) => {
   const result = await pool.query(
     `SELECT m.id, m.name, m.url, m.interval_seconds, m.timeout_ms,
             m.expected_status, m.failure_threshold, m.alerts_enabled,
-            m.is_paused, m.status, m.consecutive_failures, m.created_at,
+            m.show_on_status_page, m.is_paused, m.status,
+            m.consecutive_failures, m.created_at,
             s.checks_24h, s.uptime_24h, s.avg_response_24h,
             lc.checked_at AS last_checked_at,
             lc.response_time_ms AS last_response_time_ms
@@ -101,15 +103,15 @@ router.post('/', async (req, res) => {
   const result = await pool.query(
     `INSERT INTO monitors
        (user_id, name, url, interval_seconds, timeout_ms, expected_status,
-        failure_threshold, alerts_enabled, is_paused)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        failure_threshold, alerts_enabled, show_on_status_page, is_paused)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING ${FIELDS}`,
     [req.userId, m.name, m.url, m.interval_seconds, m.timeout_ms, m.expected_status,
-     m.failure_threshold, m.alerts_enabled, m.is_paused]
+     m.failure_threshold, m.alerts_enabled, m.show_on_status_page, m.is_paused]
   );
   res.status(201).json(result.rows[0]);
 });
- 
+
 
 router.put('/:id', async (req, res) => {
   const parsed = monitorSchema.safeParse(req.body);
@@ -122,11 +124,12 @@ router.put('/:id', async (req, res) => {
     `UPDATE monitors
      SET name = $1, url = $2, interval_seconds = $3, timeout_ms = $4,
          expected_status = $5, failure_threshold = $6, alerts_enabled = $7,
-         is_paused = $8, next_check_at = now()
-     WHERE id = $9 AND user_id = $10
+         show_on_status_page = $8, is_paused = $9, next_check_at = now()
+     WHERE id = $10 AND user_id = $11
      RETURNING ${FIELDS}`,
     [m.name, m.url, m.interval_seconds, m.timeout_ms, m.expected_status,
-     m.failure_threshold, m.alerts_enabled, m.is_paused, req.params.id, req.userId]
+     m.failure_threshold, m.alerts_enabled, m.show_on_status_page, m.is_paused,
+     req.params.id, req.userId]
   );
   if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
   res.json(result.rows[0]);

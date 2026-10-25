@@ -50,3 +50,14 @@ ALTER TABLE monitors
 
 CREATE UNIQUE INDEX one_open_incident_per_monitor
   ON incidents (monitor_id) WHERE resolved_at IS NULL;
+  CREATE TABLE status_pages (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  slug TEXT NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$'),
+  title TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE monitors
+  ADD COLUMN show_on_status_page BOOLEAN NOT NULL DEFAULT false;

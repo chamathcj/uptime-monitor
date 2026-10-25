@@ -86,3 +86,32 @@ th { color: #9ca3af; font-weight: 600; }
 
 label.checkbox { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; flex: 0 0 auto; margin-top: 20px; }
 label.checkbox input { width: 18px; height: 18px; padding: 0; }
+.tag { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: #1e1b4b; color: #a5b4fc; font-size: .72rem; font-weight: 600; vertical-align: middle; }
+.center { text-align: center; }
+
+
+.status-wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+.status-head h1 { margin-bottom: 4px; }
+.banner { padding: 16px 20px; border-radius: 12px; font-weight: 600; margin: 16px 0 20px; }
+.banner.ok { background: #052e16; color: #4ade80; border: 1px solid #14532d; }
+.banner.warn { background: #422006; color: #fbbf24; border: 1px solid #713f12; }
+.banner.bad { background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
+.banner.empty { background: #16161d; color: #9ca3af; border: 1px solid #26262f; }
+
+.svc { padding: 14px 0; border-bottom: 1px solid #26262f; }
+.svc:first-child { padding-top: 0; }
+.svc:last-child { border-bottom: none; padding-bottom: 0; }
+.svc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 12px; }
+.svc-name { font-weight: 600; }
+.svc-state { font-size: .85rem; font-weight: 600; }
+.svc-state.up { color: #4ade80; }
+.svc-state.degraded { color: #fb923c; }
+.svc-state.down { color: #f87171; }
+.svc-state.pending { color: #9ca3af; }
+
+.bars { display: flex; gap: 2px; height: 28px; }
+.bar { flex: 1; min-width: 3px; border-radius: 2px; background: #26262f; }
+.bar.green { background: #22c55e; }
+.bar.amber { background: #f59e0b; }
+.bar.red { background: #ef4444; }
+.bars-foot { display: flex; justify-content: space-between; font-size: .75rem; color: #9ca3af; margin-top: 6px; }

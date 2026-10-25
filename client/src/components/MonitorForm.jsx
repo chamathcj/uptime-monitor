@@ -11,6 +11,7 @@ export default function MonitorForm({ editing, onSaved, onCancel }) {
     timeout_seconds: editing ? Math.round(editing.timeout_ms / 1000) : 10,
     failure_threshold: editing?.failure_threshold ?? 3,
     alerts_enabled: editing?.alerts_enabled ?? true,
+    show_on_status_page: editing?.show_on_status_page ?? false,
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -36,6 +37,7 @@ export default function MonitorForm({ editing, onSaved, onCancel }) {
       timeout_ms: Number(form.timeout_seconds) * 1000,
       failure_threshold: Number(form.failure_threshold),
       alerts_enabled: form.alerts_enabled,
+      show_on_status_page: form.show_on_status_page,
       is_paused: editing?.is_paused ?? false,
     };
 
@@ -120,6 +122,14 @@ export default function MonitorForm({ editing, onSaved, onCancel }) {
             onChange={(e) => setForm({ ...form, alerts_enabled: e.target.checked })}
           />
           Send email alerts
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={form.show_on_status_page}
+            onChange={(e) => setForm({ ...form, show_on_status_page: e.target.checked })}
+          />
+          Show on public status page
         </label>
       </div>
 

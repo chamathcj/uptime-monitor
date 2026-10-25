@@ -5,6 +5,7 @@ import { useAuth } from '../AuthContext';
 import { timeAgo, fmtPct, fmtMs, displayStatus } from '../utils';
 import StatusBadge from '../components/StatusBadge';
 import MonitorForm from '../components/MonitorForm';
+import StatusPageSettings from '../components/StatusPageSettings';
 
 const REFRESH_MS = 30000;
 
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const [monitors, setMonitors] = useState(null);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showStatusPage, setShowStatusPage] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +67,9 @@ export default function Dashboard() {
           <button onClick={() => setShowForm((s) => !s)}>
             {showForm ? 'Close' : 'Add monitor'}
           </button>
+          <button className="secondary" onClick={() => setShowStatusPage((s) => !s)}>
+            Status page
+          </button>
           <button className="secondary" onClick={logout}>Log out</button>
         </div>
       </header>
@@ -96,6 +101,12 @@ export default function Dashboard() {
         </section>
       )}
 
+      {showStatusPage && (
+        <section className="panel">
+          <StatusPageSettings onClose={() => setShowStatusPage(false)} />
+        </section>
+      )}
+
       <section className="panel">
         <h2>Your monitors</h2>
         {monitors === null ? (
@@ -121,6 +132,7 @@ export default function Dashboard() {
                     <td><StatusBadge status={displayStatus(m)} /></td>
                     <td>
                       <Link to={`/monitors/${m.id}`} className="monitor-name">{m.name}</Link>
+                      {m.show_on_status_page && <span className="tag">public</span>}
                       <div className="muted small">{m.url}</div>
                     </td>
                     <td className="right">{fmtPct(m.uptime_24h)}</td>
